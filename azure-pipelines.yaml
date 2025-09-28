@@ -1,16 +1,26 @@
-# Archivo: azure-pipelines.yml (Versión para Django)
+# =================================================================
+# AZURE PIPELINE PARA EL PROYECTO "CENTAVO" (DJANGO)
+# Versión: 1.2
+# Última corrección: Activar venv para el paso de collectstatic.
+# =================================================================
 
+# Disparador: El pipeline se ejecuta en cada push a la rama 'main'.
 trigger:
 - main
 
+# Variables reutilizables para mantener el pipeline limpio.
 variables:
-  azureSubscription: 'Azure-Subscription-Connection'
+  azureSubscription: 'Azure-Subscription-Connection' # El nombre exacto de tu conexión de servicio a Azure.
   appName: 'app-centavo'
   resourceGroup: 'rg-centavo'
   vmImageName: 'ubuntu-latest'
-  pythonVersion: '3.11'
+  pythonVersion: '3.11' # Versión de Python compatible con Django 5.2
 
+# El pipeline se divide en Fases (Stages).
 stages:
+
+# --- FASE DE CONSTRUCCIÓN Y PRUEBA ---
+# Responsabilidad: Preparar el código y verificar su calidad.
 - stage: Build
   displayName: 'Build & Test Stage'
   jobs:
@@ -18,6 +28,7 @@ stages:
     pool:
       vmImage: $(vmImageName)
 
+    # Los pasos (steps) son las tareas individuales que se ejecutan secuencialmente.
     steps:
     - task: UsePythonVersion@0
       inputs:
@@ -32,35 +43,46 @@ stages:
       displayName: 'Install Dependencies'
 
     - script: |
-        # Añadir aquí tests en el futuro
+        # En el futuro, aquí se ejecutarían los tests unitarios.
         echo "Skipping tests for now."
       displayName: 'Run Tests'
 
     - script: |
-        # Necesitamos decirle a Django dónde encontrar los settings en el pipeline
+        # CORRECCIÓN: Activamos el entorno virtual ANTES de usar manage.py
+        echo "Activating virtual environment..."
+        source venv/bin/activate
+        
+        echo "Running collectstatic..."
+        # Le decimos a Django qué archivo settings usar
         export DJANGO_SETTINGS_MODULE=centavo.settings
-        python manage.py collectstatic --noinput
+        python manage.py collectstatic --noinput --clear
       displayName: 'Collect Static Files'
 
+# --- FASE DE DESPLIEGUE ---
+# Responsabilidad: Tomar el código preparado y enviarlo a Azure.
 - stage: Deploy
   displayName: 'Deploy Stage'
+  # Este stage solo se ejecuta si el stage 'Build' tuvo éxito.
   dependsOn: Build
   condition: succeeded()
+
   jobs:
   - job: DeployJob
     pool:
-      vmImage: $(vmImageName)
+      vmImage: $(vmImageמהImageName)
 
     steps:
+    # Este es el paso clave que despliega el código a nuestro App Service.
     - task: AzureWebApp@1
       displayName: 'Deploy to Azure App Service'
       inputs:
         azureSubscription: $(azureSubscription)
         appName: $(appName)
         resourceGroupName: $(resourceGroup)
+        # El paquete es todo el contenido del repositorio (incluida la carpeta 'staticfiles' generada).
         package: '$(System.DefaultWorkingDirectory)'
-        # IMPORTANTE: Desactivamos las acciones de despliegue por defecto
-        # porque nosotros ya hemos hecho collectstatic.
+        # IMPORTANTE: Desactivamos las acciones de despliegue por defecto (como Oryx)
+        # porque nosotros ya hemos hecho todo el trabajo de preparación.
         deploymentMethod: 'auto'
-        # Habilitamos una característica para que las migraciones sean más fáciles
+        # Habilitamos una característica para facilitar la ejecución de comandos remotos (como migraciones)
         appSettings: '-WEBSITE_WEBDEPLOY_USE_SCM true'
