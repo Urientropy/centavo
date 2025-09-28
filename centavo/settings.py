@@ -118,8 +118,7 @@ WSGI_APPLICATION = 'centavo.wsgi.application'
 DATABASES = {
     'default': dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}", # Vuelve a SQLite si no hay .env
-        conn_max_age=600,
-        ssl_require=True # <-- AÑADE ESTE PARÁMETRO
+        conn_max_age=600
     )
 }
 
