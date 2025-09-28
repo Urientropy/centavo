@@ -1,7 +1,8 @@
 # =================================================================
 # AZURE PIPELINE PARA EL PROYECTO "CENTAVO" (DJANGO)
-# Versión: 1.2
-# Última corrección: Activar venv para el paso de collectstatic.
+# Versión: 1.3
+# Última corrección: Añadir variables de entorno falsas para el paso
+#                  de collectstatic.
 # =================================================================
 
 # Disparador: El pipeline se ejecuta en cada push a la rama 'main'.
@@ -48,15 +49,21 @@ stages:
       displayName: 'Run Tests'
 
     - script: |
-        # CORRECCIÓN: Activamos el entorno virtual ANTES de usar manage.py
-        echo "Activating virtual environment..."
+        # Activamos el entorno virtual ANTES de usar manage.py
         source venv/bin/activate
         
-        echo "Running collectstatic..."
         # Le decimos a Django qué archivo settings usar
         export DJANGO_SETTINGS_MODULE=centavo.settings
+        
+        # Ejecutamos collectstatic
         python manage.py collectstatic --noinput --clear
       displayName: 'Collect Static Files'
+      env:
+        # CORRECCIÓN: Definimos variables falsas para que Django pueda cargar
+        # los settings sin fallar. Sus valores no importan aquí.
+        DJANGO_SECRET_KEY: "dummy-key-for-pipeline-execution"
+        DEBUG: "False"
+        # No necesitamos DATABASE_URL aquí porque collectstatic no se conecta a la BD.
 
 # --- FASE DE DESPLIEGUE ---
 # Responsabilidad: Tomar el código preparado y enviarlo a Azure.
@@ -69,7 +76,7 @@ stages:
   jobs:
   - job: DeployJob
     pool:
-      vmImage: $(vmImageמהImageName)
+      vmImage: $(vmImageName)
 
     steps:
     # Este es el paso clave que despliega el código a nuestro App Service.
@@ -81,8 +88,7 @@ stages:
         resourceGroupName: $(resourceGroup)
         # El paquete es todo el contenido del repositorio (incluida la carpeta 'staticfiles' generada).
         package: '$(System.DefaultWorkingDirectory)'
-        # IMPORTANTE: Desactivamos las acciones de despliegue por defecto (como Oryx)
-        # porque nosotros ya hemos hecho todo el trabajo de preparación.
+        # Desactivamos la lógica de construcción por defecto, ya que nosotros lo hemos hecho todo.
         deploymentMethod: 'auto'
-        # Habilitamos una característica para facilitar la ejecución de comandos remotos (como migraciones)
+        # Habilitamos una característica para facilitar la ejecución de comandos remotos (como migraciones).
         appSettings: '-WEBSITE_WEBDEPLOY_USE_SCM true'
