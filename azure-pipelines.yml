@@ -1,0 +1,66 @@
+# Archivo: azure-pipelines.yml (Versión para Django)
+
+trigger:
+- main
+
+variables:
+  azureSubscription: 'Azure-Subscription-Connection'
+  appName: 'app-centavo'
+  resourceGroup: 'rg-centavo'
+  vmImageName: 'ubuntu-latest'
+  pythonVersion: '3.9'
+
+stages:
+- stage: Build
+  displayName: 'Build & Test Stage'
+  jobs:
+  - job: BuildJob
+    pool:
+      vmImage: $(vmImageName)
+
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: $(pythonVersion)
+      displayName: 'Use Python $(pythonVersion)'
+
+    - script: |
+        python -m venv venv
+        source venv/bin/activate
+        pip install --upgrade pip
+        pip install -r requirements.txt
+      displayName: 'Install Dependencies'
+
+    - script: |
+        # Añadir aquí tests en el futuro
+        echo "Skipping tests for now."
+      displayName: 'Run Tests'
+
+    - script: |
+        # Necesitamos decirle a Django dónde encontrar los settings en el pipeline
+        export DJANGO_SETTINGS_MODULE=centavo.settings
+        python manage.py collectstatic --noinput
+      displayName: 'Collect Static Files'
+
+- stage: Deploy
+  displayName: 'Deploy Stage'
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: DeployJob
+    pool:
+      vmImage: $(vmImageName)
+
+    steps:
+    - task: AzureWebApp@1
+      displayName: 'Deploy to Azure App Service'
+      inputs:
+        azureSubscription: $(azureSubscription)
+        appName: $(appName)
+        resourceGroupName: $(resourceGroup)
+        package: '$(System.DefaultWorkingDirectory)'
+        # IMPORTANTE: Desactivamos las acciones de despliegue por defecto
+        # porque nosotros ya hemos hecho collectstatic.
+        deploymentMethod: 'auto'
+        # Habilitamos una característica para que las migraciones sean más fáciles
+        appSettings: '-WEBSITE_WEBDEPLOY_USE_SCM true'
