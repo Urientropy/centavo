@@ -117,10 +117,21 @@ WSGI_APPLICATION = 'centavo.wsgi.application'
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}", # Vuelve a SQLite si no hay .env
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
         conn_max_age=600
     )
 }
+
+# --- INICIO DE LA CONFIGURACIÓN SSL EXPLÍCITA ---
+# Si la variable DATABASE_URL existe (estamos en Azure),
+# le decimos a Django cómo conectarse de forma segura.
+if config('DATABASE_URL', default=None):
+    DATABASES['default']['OPTIONS'] = {
+        'ssl': {
+            # Apunta al certificado CA que hemos descargado.
+            'ca': BASE_DIR / 'certs/DigiCertGlobalRootG2.crt.pem'
+        }
+    }
 
 
 # Password validation
