@@ -8,7 +8,7 @@ variables:
   appName: 'app-centavo'
   resourceGroup: 'rg-centavo'
   vmImageName: 'ubuntu-latest'
-  pythonVersion: '3.9'
+  pythonVersion: '3.11'
 
 stages:
 - stage: Build
