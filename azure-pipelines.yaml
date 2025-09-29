@@ -1,94 +1,58 @@
 # =================================================================
-# AZURE PIPELINE PARA EL PROYECTO "CENTAVO" (DJANGO)
-# Versión: 1.3
-# Última corrección: Añadir variables de entorno falsas para el paso
-#                  de collectstatic.
+# AZURE PIPELINE PARA "CENTAVO" (DJANGO) - VERSIÓN DE ZIP DEPLOY
+# Versión: 2.0 (Estrategia Simplificada)
 # =================================================================
 
-# Disparador: El pipeline se ejecuta en cada push a la rama 'main'.
 trigger:
 - main
 
-# Variables reutilizables para mantener el pipeline limpio.
 variables:
-  azureSubscription: 'Azure-Subscription-Connection' # El nombre exacto de tu conexión de servicio a Azure.
+  azureSubscription: 'Azure-Subscription-Connection'
   appName: 'app-centavo'
   resourceGroup: 'rg-centavo'
   vmImageName: 'ubuntu-latest'
-  pythonVersion: '3.11' # Versión de Python compatible con Django 5.2
+  pythonVersion: '3.11'
 
-# El pipeline se divide en Fases (Stages).
 stages:
-
-# --- FASE DE CONSTRUCCIÓN Y PRUEBA ---
-# Responsabilidad: Preparar el código y verificar su calidad.
 - stage: Build
-  displayName: 'Build & Test Stage'
+  displayName: 'Build and Package'
   jobs:
   - job: BuildJob
     pool:
       vmImage: $(vmImageName)
-
-    # Los pasos (steps) son las tareas individuales que se ejecutan secuencialmente.
     steps:
-    - task: UsePythonVersion@0
+    # No instalamos nada. Solo empaquetamos el código fuente.
+    - task: ArchiveFiles@2
+      displayName: 'Archive source code'
       inputs:
-        versionSpec: $(pythonVersion)
-      displayName: 'Use Python $(pythonVersion)'
+        rootFolderOrFile: '$(Build.SourcesDirectory)'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+        replaceExistingArchive: true
 
-    - script: |
-        python -m venv venv
-        source venv/bin/activate
-        pip install --upgrade pip
-        pip install -r requirements.txt
-      displayName: 'Install Dependencies'
+    # Publicamos el .zip para que el stage de Deploy lo pueda usar.
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish artifact for deployment'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
 
-    - script: |
-        # En el futuro, aquí se ejecutarían los tests unitarios.
-        echo "Skipping tests for now."
-      displayName: 'Run Tests'
-
-    - script: |
-        # Activamos el entorno virtual ANTES de usar manage.py
-        source venv/bin/activate
-        
-        # Le decimos a Django qué archivo settings usar
-        export DJANGO_SETTINGS_MODULE=centavo.settings
-        
-        # Ejecutamos collectstatic
-        python manage.py collectstatic --noinput --clear
-      displayName: 'Collect Static Files'
-      env:
-        # CORRECCIÓN: Definimos variables falsas para que Django pueda cargar
-        # los settings sin fallar. Sus valores no importan aquí.
-        DJANGO_SECRET_KEY: "dummy-key-for-pipeline-execution"
-        DEBUG: "False"
-        # No necesitamos DATABASE_URL aquí porque collectstatic no se conecta a la BD.
-
-# --- FASE DE DESPLIEGUE ---
-# Responsabilidad: Tomar el código preparado y enviarlo a Azure.
 - stage: Deploy
-  displayName: 'Deploy Stage'
-  # Este stage solo se ejecuta si el stage 'Build' tuvo éxito.
+  displayName: 'Deploy to Azure'
   dependsOn: Build
   condition: succeeded()
-
   jobs:
   - job: DeployJob
     pool:
       vmImage: $(vmImageName)
-
     steps:
-    # Este es el paso clave que despliega el código a nuestro App Service.
+    # Desplegamos el .zip. Azure se encargará del resto.
     - task: AzureWebApp@1
       displayName: 'Deploy to Azure App Service'
       inputs:
         azureSubscription: $(azureSubscription)
         appName: $(appName)
         resourceGroupName: $(resourceGroup)
-        # El paquete es todo el contenido del repositorio (incluida la carpeta 'staticfiles' generada).
-        package: '$(System.DefaultWorkingDirectory)'
-        # Desactivamos la lógica de construcción por defecto, ya que nosotros lo hemos hecho todo.
-        deploymentMethod: 'auto'
-        # Habilitamos una característica para facilitar la ejecución de comandos remotos (como migraciones).
-        appSettings: '-WEBSITE_WEBDEPLOY_USE_SCM true'
+        package: '$(Pipeline.Workspace)/drop/$(Build.BuildId).zip'
