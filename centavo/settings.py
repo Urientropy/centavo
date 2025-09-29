@@ -121,12 +121,9 @@ TEMPLATES = [
 
 DATABASES = {
     'default': dj_database_url.config(
-        # Lee la variable de entorno DATABASE_URL.
-        # Si no existe, usa SQLite como fallback para desarrollo local.
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
         conn_max_age=600,
-        # PyMySQL y dj-database-url manejan esto correctamente para Azure.
-        ssl_require=config('DATABASE_SSL', default=True, cast=bool)
+        ssl_require=True
     )
 }
 
