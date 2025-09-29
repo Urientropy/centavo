@@ -23,6 +23,13 @@ ALLOWED_HOSTS = [APP_HOST]
 if DEBUG:
     ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
 
+# --- INICIO DE LA CORRECCIÓN PARA AZURE ---
+# Le decimos a Django que confíe en las cabeceras 'X-Forwarded' que Azure añade.
+USE_X_FORWARDED_HOST = True
+# Asegura que las cookies de sesión se envíen de forma segura.
+CSRF_TRUSTED_ORIGINS = [f"https://{APP_HOST}"]
+# --- FIN DE LA CORRECCIÓN PARA AZURE ---
+
 # ==============================================================================
 # APLICACIONES
 # ==============================================================================
