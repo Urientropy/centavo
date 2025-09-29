@@ -87,19 +87,31 @@ TEMPLATES = [
 # ==============================================================================
 # BASE DE DATOS
 # ==============================================================================
+
 DATABASES = {
-    'default': dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600,
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 }
 
-if DATABASES["default"]["ENGINE"] == "django.db.backends.mysql":
-    DATABASES["default"]["OPTIONS"] = {
-        "ssl": {
-            "ca": str(BASE_DIR / "certs" / "DigiCertGlobalRootCA.crt.pem")
+# Si la variable DATABASE_URL existe (estamos en Azure),
+# sobreescribimos la configuración por defecto con la de producción.
+DATABASE_URL = config('DATABASE_URL', default=None)
+if DATABASE_URL:
+    DATABASES['default'] = dj_database_url.config(
+        default=DATABASE_URL,
+        conn_max_age=600,
+        ssl_require=True
+    )
+
+    # Añadimos explícitamente las opciones de SSL para PyMySQL
+    DATABASES['default']['OPTIONS'] = {
+        'ssl': {
+            'ca': str(BASE_DIR / 'certs/DigiCertGlobalRootG2.crt.pem')
         }
     }
+
 # --- FIN DE LA CONFIGURACIÓN SSL EXPLÍCITA ---
 
 # ==============================================================================
