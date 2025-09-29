@@ -117,22 +117,14 @@ WSGI_APPLICATION = 'centavo.wsgi.application'
 
 DATABASES = {
     'default': dj_database_url.config(
+        # Busca la variable DATABASE_URL.
+        # Si no la encuentra, usa SQLite local como fallback.
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
         conn_max_age=600,
-        ssl_require=True # PyMySQL SÍ entiende este parámetro correctamente.
+        # Esta es la única línea que necesitamos para SSL con PyMySQL.
+        ssl_require=config('DATABASE_SSL', default=True, cast=bool)
     )
 }
-
-# --- INICIO DE LA CONFIGURACIÓN SSL EXPLÍCITA ---
-# Si la variable DATABASE_URL existe (estamos en Azure),
-# le decimos a Django cómo conectarse de forma segura.
-if config('DATABASE_URL', default=None):
-    DATABASES['default']['OPTIONS'] = {
-        'ssl': {
-            # Apunta al certificado CA que hemos descargado.
-            'ca': BASE_DIR / 'certs/DigiCertGlobalRootG2.crt.pem'
-        }
-    }
 
 
 # Password validation
