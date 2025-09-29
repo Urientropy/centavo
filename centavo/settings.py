@@ -19,21 +19,28 @@ import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+# ==============================================================================
+# CONFIGURACIÓN DE SEGURIDAD Y ENTORNO
+# ==============================================================================
 
-# SECURITY WARNING: keep the secret key used in production secret!
+# Lee la SECRET_KEY de las variables de entorno. CRÍTICO para producción.
 SECRET_KEY = config('DJANGO_SECRET_KEY')
+
+# Lee el modo DEBUG de las variables de entorno. Será 'False' en Azure.
 DEBUG = config('DEBUG', default=False, cast=bool)
 
+# Define en qué dominios puede ejecutarse la aplicación en producción.
 ALLOWED_HOSTS = ['app-centavo.azurewebsites.net']
-# Opcionalmente, para permitir desarrollo local:
+
+# Añade hosts de desarrollo local solo si DEBUG es True.
 if DEBUG:
     ALLOWED_HOSTS.append('localhost')
     ALLOWED_HOSTS.append('127.0.0.1')
 
 
-# Application definition
+# ==============================================================================
+# DEFINICIÓN DE APLICACIONES
+# ==============================================================================
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -42,7 +49,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # 'whitenoise.runserver_nostatic',
     'django_vite',
 
     # Apps de Terceros
@@ -52,7 +58,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_extensions',
 
-    # Nuestras Apps (el orden puede ser importante para las plantillas/estáticos)
+    # Nuestras Apps
     'users.apps.UsersConfig',
     'tenants.apps.TenantsConfig',
     'inventory.apps.InventoryConfig',
@@ -61,30 +67,20 @@ INSTALLED_APPS = [
     'finance.apps.FinanceConfig',
 ]
 
-# --- INICIO DE LA CONFIGURACIÓN INTELIGENTE ---
-# Añade esta app SOLO si estamos en modo de depuración
-if config('DEBUG', default=False, cast=bool):
+# Añade 'whitenoise.runserver_nostatic' solo en modo de depuración para desarrollo.
+if DEBUG:
     INSTALLED_APPS.append('whitenoise.runserver_nostatic')
-# --- FIN DE LA CONFIGURACIÓN INTELIGENTE ---
 
 AUTH_USER_MODEL = 'users.User'
 
-# --- INICIO: Configuración de Django REST Framework y JWT ---
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 6
-}
 
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-}
+# ==============================================================================
+# CONFIGURACIÓN DE MIDDLEWARE
+# ==============================================================================
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # WhiteNoise Middleware debe ir justo después de SecurityMiddleware.
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -93,12 +89,15 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-
 ]
 
-ROOT_URLCONF = 'centavo.urls'
-VITE_APP_DIR = BASE_DIR / "frontend"
 
+# ==============================================================================
+# CONFIGURACIÓN DE RUTAS Y PLANTILLAS
+# ==============================================================================
+
+ROOT_URLCONF = 'centavo.urls'
+WSGI_APPLICATION = 'centavo.wsgi.application'
 
 TEMPLATES = [
     {
@@ -115,80 +114,74 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'centavo.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# ==============================================================================
+# CONFIGURACIÓN DE LA BASE DE DATOS
+# ==============================================================================
 
 DATABASES = {
     'default': dj_database_url.config(
-        # Busca la variable DATABASE_URL.
-        # Si no la encuentra, usa SQLite local como fallback.
+        # Lee la variable de entorno DATABASE_URL.
+        # Si no existe, usa SQLite como fallback para desarrollo local.
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
         conn_max_age=600,
-        # Esta es la única línea que necesitamos para SSL con PyMySQL.
+        # PyMySQL y dj-database-url manejan esto correctamente para Azure.
         ssl_require=config('DATABASE_SSL', default=True, cast=bool)
     )
 }
 
 
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
+# ==============================================================================
+# CONFIGURACIÓN DE ARCHIVOS ESTÁTICOS Y DE MEDIOS (PRODUCCIÓN)
+# ==============================================================================
 
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
-
-
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
-LANGUAGE_CODE = 'es-ni'
-
-TIME_ZONE = 'America/Managua'
-
-USE_I18N = True
-
-USE_L10N = True
-
-USE_TZ = True
-
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
-
-STATIC_URL = 'static/' # <-- Así de simple.
-
+STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Directorios para buscar estáticos durante el desarrollo.
 STATICFILES_DIRS = [
-    VITE_APP_DIR / "dist",
+    BASE_DIR / "frontend" / "dist",
 ]
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+# SOLUCIÓN FINAL: En producción, confiamos únicamente en STATIC_ROOT
+# después de que `collectstatic` se ha ejecutado en el pipeline.
+if not DEBUG:
+    STATICFILES_DIRS = []
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# Almacenamiento optimizado para WhiteNoise en producción.
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+
+# ==============================================================================
+# CONFIGURACIONES DE APPS DE TERCEROS (REST FRAMEWORK, JWT, CORS, VITE)
+# ==============================================================================
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 6
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+}
+
+# Orígenes permitidos para peticiones CORS (solo para desarrollo).
+# En producción, esto debería ser más restrictivo.
 CORS_ALLOWED_ORIGINS = [
-     "http://localhost:8000",
+    "http://localhost:8000",
     "http://127.0.0.1:8000",
-    "http://localhost:5173", # Puerto por defecto de Vite, por si acaso
+    "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
 
+VITE_APP_DIR = BASE_DIR / "frontend"
 DJANGO_VITE = {
     "default": {
         "dev_mode": DEBUG,
@@ -198,7 +191,21 @@ DJANGO_VITE = {
     }
 }
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# ==============================================================================
+# OTRAS CONFIGURACIONES DE DJANGO
+# ==============================================================================
+
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
+
+LANGUAGE_CODE = 'es-ni'
+TIME_ZONE = 'America/Managua'
+USE_I18N = True
+USE_L10N = True
+USE_TZ = True
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
