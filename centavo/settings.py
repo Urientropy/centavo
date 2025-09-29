@@ -1,7 +1,7 @@
 # ==============================================================================
 # ARCHIVO DE CONFIGURACIÓN DE DJANGO PARA "CENTAVO"
-# Versión: Producción-Ready v1.0
-# Optimizado para Azure App Service con despliegue manual/VS Code.
+# Versión: FINAL - Producción-Ready v2.0
+# Optimizado para Azure App Service con PyMySQL y WhiteNoise.
 # ==============================================================================
 
 from pathlib import Path
@@ -10,26 +10,29 @@ from decouple import config
 import dj_database_url
 import pymysql
 
-# Le decimos a Django que use PyMySQL en lugar del conector por defecto.
-# Esto debe hacerse ANTES de cualquier otra operación de base de datos.
+# --- Configuración Fundamental ---
+# Le dice a Django que use PyMySQL en lugar del conector por defecto.
+# Debe ejecutarse antes de cualquier operación de base de datos.
 pymysql.install_as_MySQLdb()
 
-# --- Rutas Base ---
+# Define la ruta base del proyecto.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ==============================================================================
 # CONFIGURACIÓN DE SEGURIDAD Y ENTORNO
 # ==============================================================================
 
+# Lee la SECRET_KEY de las variables de entorno. CRÍTICO para producción.
 SECRET_KEY = config('DJANGO_SECRET_KEY')
+
+# Lee el modo DEBUG de las variables de entorno. Será 'False' en Azure.
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = []
-# El nombre de tu App Service. Debe estar aquí para producción.
-ALLOWED_HOST_PROD = config('ALLOWED_HOST', default=None)
-if ALLOWED_HOST_PROD:
-    ALLOWED_HOSTS.append(ALLOWED_HOST_PROD)
+# Lee el host de producción desde las variables de entorno.
+APP_HOST = config('APP_HOST', default='localhost')
+ALLOWED_HOSTS = [APP_HOST]
 
+# Añade hosts de desarrollo local solo si DEBUG es True.
 if DEBUG:
     ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
 
@@ -43,7 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'whitenoise.runserver_nostatic', # Mantenlo simple, WhiteNoise es inteligente.
+    'whitenoise.runserver_nostatic', # Necesario para servir estáticos en desarrollo.
     'django.contrib.staticfiles',
     'django_vite',
     'rest_framework',
@@ -67,6 +70,7 @@ AUTH_USER_MODEL = 'users.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # WhiteNoise Middleware debe ir justo después de SecurityMiddleware.
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -118,6 +122,15 @@ DATABASES = {
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_DIRS = []
+
+# En modo de DESARROLLO, le decimos a Django que busque estáticos
+# en la carpeta 'public' o 'assets' de nuestro frontend.
+# ¡AJUSTA ESTA RUTA SI TUS IMÁGENES ESTÁN EN OTRO LADO!
+if DEBUG:
+    STATICFILES_DIRS.append(BASE_DIR / "frontend/src/assets")
+    STATICFILES_DIRS.append(BASE_DIR / "frontend/public")
+
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -137,10 +150,11 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
 
-# Orígenes CORS permitidos. Añadiremos el de producción más tarde.
+# Orígenes CORS permitidos.
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    f"https://{APP_HOST}",
 ]
 if DEBUG:
     CORS_ALLOWED_ORIGINS.extend(["http://localhost:8000", "http://127.0.0.1:8000"])
