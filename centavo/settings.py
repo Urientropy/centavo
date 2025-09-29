@@ -90,17 +90,14 @@ TEMPLATES = [
 DATABASES = {
     'default': dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600
-        # ¡SIN ssl_require!
+        conn_max_age=600,
     )
 }
 
-# --- INICIO DE LA CONFIGURACIÓN SSL EXPLÍCITA ---
-# Si estamos en Azure, añadimos las opciones de SSL.
-if config('DATABASE_URL', default=None):
-    DATABASES['default']['OPTIONS'] = {
-        'ssl': {
-            'ca': BASE_DIR / 'certs/DigiCertGlobalRootG2.crt.pem'
+if DATABASES["default"]["ENGINE"] == "django.db.backends.mysql":
+    DATABASES["default"]["OPTIONS"] = {
+        "ssl": {
+            "ca": str(BASE_DIR / "certs" / "DigiCertGlobalRootCA.crt.pem")
         }
     }
 # --- FIN DE LA CONFIGURACIÓN SSL EXPLÍCITA ---
