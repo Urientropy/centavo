@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'whitenoise.runserver_nostatic',
+    # 'whitenoise.runserver_nostatic',
     'django_vite',
 
     # Apps de Terceros
@@ -60,6 +60,12 @@ INSTALLED_APPS = [
     'production.apps.ProductionConfig',
     'finance.apps.FinanceConfig',
 ]
+
+# --- INICIO DE LA CONFIGURACIÓN INTELIGENTE ---
+# Añade esta app SOLO si estamos en modo de depuración
+if config('DEBUG', default=False, cast=bool):
+    INSTALLED_APPS.append('whitenoise.runserver_nostatic')
+# --- FIN DE LA CONFIGURACIÓN INTELIGENTE ---
 
 AUTH_USER_MODEL = 'users.User'
 
