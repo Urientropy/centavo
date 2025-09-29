@@ -19,7 +19,6 @@ SECRET_KEY = config('DJANGO_SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
 APP_HOST = config('APP_HOST', default='localhost')
 
-# --- CONFIGURACIÓN DE HOSTS PERMITIDOS ---
 ALLOWED_HOSTS = []
 if APP_HOST:
     ALLOWED_HOSTS.append(APP_HOST)
@@ -27,20 +26,16 @@ if DEBUG:
     ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
 
 # --- CONFIGURACIÓN PARA PROXIES (AZURE) ---
-# Confía en las cabeceras que añade el equilibrador de carga de Azure.
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # --- CONFIGURACIÓN DE SEGURIDAD CSRF y CORS ---
-# Orígenes de confianza para peticiones seguras.
 CSRF_TRUSTED_ORIGINS = [f"https://{APP_HOST}"]
 CORS_ALLOWED_ORIGINS = [f"https://{APP_HOST}"]
 if DEBUG:
     CORS_ALLOWED_ORIGINS.extend([
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
+        "http://localhost:5173", "http://127.0.0.1:5173",
+        "http://localhost:8000", "http://127.0.0.1:8000",
     ])
 
 # ==============================================================================
