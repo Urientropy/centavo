@@ -1,7 +1,7 @@
 # =================================================================
 # AZURE PIPELINE PARA "CENTAVO" (DJANGO) - VERSIÓN DE ZIP DEPLOY
-# Versión: 2.1 (Final)
-# Última corrección: Simplificar el nombre del artefacto a 'app.zip'.
+# Versión: 2.2 (Final y Correcta)
+# Última corrección: Añadir explícitamente la descarga de artefactos.
 # =================================================================
 
 trigger:
@@ -22,19 +22,15 @@ stages:
     pool:
       vmImage: $(vmImageName)
     steps:
-    # Este paso toma todo el código fuente y lo comprime en un archivo .zip.
     - task: ArchiveFiles@2
       displayName: 'Archive source code'
       inputs:
         rootFolderOrFile: '$(Build.SourcesDirectory)'
         includeRootFolder: false
         archiveType: 'zip'
-        # CORRECCIÓN: Usamos un nombre de archivo estático y predecible.
         archiveFile: '$(Build.ArtifactStagingDirectory)/app.zip'
         replaceExistingArchive: true
 
-    # Este paso toma el archivo .zip generado y lo "publica"
-    # como un artefacto oficial de esta construcción del pipeline.
     - task: PublishBuildArtifacts@1
       displayName: 'Publish artifact for deployment'
       inputs:
@@ -47,17 +43,31 @@ stages:
   dependsOn: Build
   condition: succeeded()
   jobs:
-  - job: DeployJob
+  # --- INICIO DE LA CORRECCIÓN ---
+  # El deployment job es un tipo especial que necesita ser definido así.
+  - deployment: DeployJob
+    displayName: Deploy App Service
+    environment: 'production' # Puedes nombrar el entorno como quieras
     pool:
       vmImage: $(vmImageName)
-    steps:
-    # Este paso despliega el .zip. Azure se encargará de descomprimirlo
-    # y ejecutar el sistema de construcción Oryx para instalar dependencias.
-    - task: AzureWebApp@1
-      displayName: 'Deploy to Azure App Service'
-      inputs:
-        azureSubscription: $(azureSubscription)
-        appName: $(appName)
-        resourceGroupName: $(resourceGroup)
-        # CORRECCIÓN: La ruta ahora apunta al nombre de archivo estático.
-        package: '$(Pipeline.Workspace)/drop/app.zip'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          # PASO 1: Descargar el artefacto del stage anterior
+          - task: DownloadBuildArtifacts@1
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'drop'
+              downloadPath: '$(Pipeline.Workspace)'
+
+          # PASO 2: Desplegar el .zip descargado
+          - task: AzureWebApp@1
+            displayName: 'Deploy to Azure App Service'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              appName: $(appName)
+              resourceGroupName: $(resourceGroup)
+              package: '$(Pipeline.Workspace)/drop/app.zip'
+  # --- FIN DE LA CORRECCIÓN ---
