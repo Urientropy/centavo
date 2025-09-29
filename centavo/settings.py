@@ -91,9 +91,14 @@ DATABASES = {
     'default': dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
         conn_max_age=600,
-        ssl_require=not DEBUG
     )
 }
+
+# Si la URL es MySQL, agrega ssl manualmente
+if DATABASES["default"]["ENGINE"] == "django.db.backends.mysql":
+    DATABASES["default"]["OPTIONS"] = {
+        "ssl": {"ca": "/home/site/wwwroot/certs/DigiCertGlobalRootCA.crt.pem"}
+    }
 
 # ==============================================================================
 # ARCHIVOS ESTÁTICOS Y DE MEDIOS
