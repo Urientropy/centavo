@@ -1,6 +1,7 @@
 # =================================================================
 # AZURE PIPELINE PARA "CENTAVO" (DJANGO) - VERSIÓN DE ZIP DEPLOY
-# Versión: 2.0 (Estrategia Simplificada)
+# Versión: 2.1 (Final)
+# Última corrección: Simplificar el nombre del artefacto a 'app.zip'.
 # =================================================================
 
 trigger:
@@ -21,17 +22,19 @@ stages:
     pool:
       vmImage: $(vmImageName)
     steps:
-    # No instalamos nada. Solo empaquetamos el código fuente.
+    # Este paso toma todo el código fuente y lo comprime en un archivo .zip.
     - task: ArchiveFiles@2
       displayName: 'Archive source code'
       inputs:
         rootFolderOrFile: '$(Build.SourcesDirectory)'
         includeRootFolder: false
         archiveType: 'zip'
-        archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+        # CORRECCIÓN: Usamos un nombre de archivo estático y predecible.
+        archiveFile: '$(Build.ArtifactStagingDirectory)/app.zip'
         replaceExistingArchive: true
 
-    # Publicamos el .zip para que el stage de Deploy lo pueda usar.
+    # Este paso toma el archivo .zip generado y lo "publica"
+    # como un artefacto oficial de esta construcción del pipeline.
     - task: PublishBuildArtifacts@1
       displayName: 'Publish artifact for deployment'
       inputs:
@@ -48,11 +51,13 @@ stages:
     pool:
       vmImage: $(vmImageName)
     steps:
-    # Desplegamos el .zip. Azure se encargará del resto.
+    # Este paso despliega el .zip. Azure se encargará de descomprimirlo
+    # y ejecutar el sistema de construcción Oryx para instalar dependencias.
     - task: AzureWebApp@1
       displayName: 'Deploy to Azure App Service'
       inputs:
         azureSubscription: $(azureSubscription)
         appName: $(appName)
         resourceGroupName: $(resourceGroup)
-        package: '$(Pipeline.Workspace)/drop/$(Build.BuildId).zip'
+        # CORRECCIÓN: La ruta ahora apunta al nombre de archivo estático.
+        package: '$(Pipeline.Workspace)/drop/app.zip'
