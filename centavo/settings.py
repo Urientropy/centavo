@@ -1,7 +1,6 @@
 # ==============================================================================
 # ARCHIVO DE CONFIGURACIÓN DE DJANGO PARA "CENTAVO"
-# Versión: FINAL - Producción-Ready v2.1 (Corregido)
-# Optimizado para Azure App Service con PyMySQL y WhiteNoise.
+# Versión: FINAL v3.0 - Azure Production Ready
 # ==============================================================================
 
 from pathlib import Path
@@ -19,46 +18,45 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('DJANGO_SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
 APP_HOST = config('APP_HOST', default='localhost')
-ALLOWED_HOSTS = [APP_HOST]
+
+# --- CONFIGURACIÓN DE HOSTS PERMITIDOS ---
+ALLOWED_HOSTS = []
+if APP_HOST:
+    ALLOWED_HOSTS.append(APP_HOST)
 if DEBUG:
     ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
 
-# --- INICIO DE LA CORRECCIÓN PARA AZURE ---
-# Le decimos a Django que confíe en las cabeceras 'X-Forwarded' que Azure añade.
+# --- CONFIGURACIÓN PARA PROXIES (AZURE) ---
+# Confía en las cabeceras que añade el equilibrador de carga de Azure.
 USE_X_FORWARDED_HOST = True
-# Asegura que las cookies de sesión se envíen de forma segura.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# --- CONFIGURACIÓN DE SEGURIDAD CSRF y CORS ---
+# Orígenes de confianza para peticiones seguras.
 CSRF_TRUSTED_ORIGINS = [f"https://{APP_HOST}"]
-# --- FIN DE LA CORRECCIÓN PARA AZURE ---
+CORS_ALLOWED_ORIGINS = [f"https://{APP_HOST}"]
+if DEBUG:
+    CORS_ALLOWED_ORIGINS.extend([
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ])
 
 # ==============================================================================
-# APLICACIONES
+# APLICACIONES Y MIDDLEWARE
 # ==============================================================================
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'whitenoise.runserver_nostatic',
-    'django.contrib.staticfiles',
-    'django_vite',
-    'rest_framework',
-    'rest_framework_simplejwt',
-    'rest_framework_simplejwt.token_blacklist',
-    'corsheaders',
-    'django_extensions',
-    'users.apps.UsersConfig',
-    'tenants.apps.TenantsConfig',
-    'inventory.apps.InventoryConfig',
-    'products.apps.ProductsConfig',
-    'production.apps.ProductionConfig',
-    'finance.apps.FinanceConfig',
+    'django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes',
+    'django.contrib.sessions', 'django.contrib.messages',
+    'whitenoise.runserver_nostatic', 'django.contrib.staticfiles',
+    'django_vite', 'rest_framework', 'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist', 'corsheaders', 'django_extensions',
+    'users.apps.UsersConfig', 'tenants.apps.TenantsConfig', 'inventory.apps.InventoryConfig',
+    'products.apps.ProductsConfig', 'production.apps.ProductionConfig', 'finance.apps.FinanceConfig',
 ]
 AUTH_USER_MODEL = 'users.User'
 
-# ==============================================================================
-# MIDDLEWARE
-# ==============================================================================
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -76,114 +74,41 @@ MIDDLEWARE = [
 # ==============================================================================
 ROOT_URLCONF = 'centavo.urls'
 WSGI_APPLICATION = 'centavo.wsgi.application'
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / "templates"],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
-    },
-]
+TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates','DIRS': [BASE_DIR / "templates"],'APP_DIRS': True,'OPTIONS': {'context_processors': ['django.template.context_processors.request','django.contrib.auth.context_processors.auth','django.contrib.messages.context_processors.messages',],},},]
 
 # ==============================================================================
 # BASE DE DATOS
 # ==============================================================================
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
-# Si la variable DATABASE_URL existe (estamos en Azure),
-# sobreescribimos la configuración por defecto con la de producción.
+DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3','NAME': BASE_DIR / 'db.sqlite3',}}
 DATABASE_URL = config('DATABASE_URL', default=None)
 if DATABASE_URL:
-    DATABASES['default'] = dj_database_url.config(
-        default=DATABASE_URL,
-        conn_max_age=600,
-        ssl_require=True
-    )
-
-    # Añadimos explícitamente las opciones de SSL para PyMySQL
-    DATABASES['default']['OPTIONS'] = {
-        'ssl': {
-            'ca': str(BASE_DIR / 'certs/DigiCertGlobalRootG2.crt.pem')
-        }
-    }
-
-# --- FIN DE LA CONFIGURACIÓN SSL EXPLÍCITA ---
+    DATABASES['default'] = dj_database_url.config(default=DATABASE_URL, conn_max_age=600, ssl_require=True)
+    DATABASES['default']['OPTIONS'] = {'ssl': {'ca': str(BASE_DIR / 'certs/DigiCertGlobalRootG2.crt.pem')}}
 
 # ==============================================================================
 # ARCHIVOS ESTÁTICOS Y DE MEDIOS
 # ==============================================================================
-VITE_APP_DIR = BASE_DIR / "frontend"
-
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
-# --- INICIO DE LA CONFIGURACIÓN CORREGIDA ---
-# Esta es la lista de directorios donde `collectstatic` buscará archivos,
-# y donde el servidor de desarrollo buscará estáticos.
-STATICFILES_DIRS = [
-    # SIEMPRE incluimos la carpeta 'dist', ya que contiene los assets
-    # compilados de Vite (para la SPA) y nuestros assets manuales (para la landing).
-    VITE_APP_DIR / "dist",
-]
-
-# En modo de DESARROLLO, podemos añadir opcionalmente la carpeta 'public'
-# si contiene assets que queremos servir directamente sin pasar por el 'build' de Vite.
+STATICFILES_DIRS = [BASE_DIR / "frontend" / "dist"]
 if DEBUG:
-    STATICFILES_DIRS.append(VITE_APP_DIR / "public")
-# --- FIN DE LA CONFIGURACIÓN CORREGIDA ---
-
+    STATICFILES_DIRS.append(BASE_DIR / "frontend/public")
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # ==============================================================================
 # CONFIGURACIONES DE TERCEROS
 # ==============================================================================
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',),
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 6
-}
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-}
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    f"https://{APP_HOST}",
-]
-if DEBUG:
-    CORS_ALLOWED_ORIGINS.extend(["http://localhost:8000", "http://127.0.0.1:8000"])
-
-DJANGO_VITE = {
-    "default": {
-        "dev_mode": DEBUG,
-        "manifest_path": VITE_APP_DIR / "dist" / "manifest.json",
-    }
-}
+REST_FRAMEWORK = {'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',),'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination','PAGE_SIZE': 6}
+SIMPLE_JWT = {'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),'REFRESH_TOKEN_LIFETIME': timedelta(days=1),}
+VITE_APP_DIR = BASE_DIR / "frontend"
+DJANGO_VITE = {"default": {"dev_mode": DEBUG,"manifest_path": VITE_APP_DIR / "dist" / "manifest.json",}}
 
 # ==============================================================================
-# OTRAS CONFIGURACIONES DE DJANGO
+# OTRAS CONFIGURACIONES
 # ==============================================================================
-AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
-]
+AUTH_PASSWORD_VALIDATORS = [{'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},{'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},{'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},{'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},]
 LANGUAGE_CODE = 'es-ni'
 TIME_ZONE = 'America/Managua'
 USE_I18N = True
