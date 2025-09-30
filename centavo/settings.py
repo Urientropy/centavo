@@ -88,6 +88,7 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173", # Origen del frontend de Vite en desarrollo
     "http://127.0.0.1:5173",
+    "https://app-centavo.azurewebsites.net", # <-- AÑADIR ESTA LÍNEA
 ]
 # En producción, deberás añadir la URL de tu frontend, ej: "https://www.tuapp.com"
 
