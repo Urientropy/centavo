@@ -88,9 +88,17 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173", # Origen del frontend de Vite en desarrollo
     "http://127.0.0.1:5173",
-    "https://app-centavo.azurewebsites.net", # <-- AÑADIR ESTA LÍNEA
+    f"https://{ALLOWED_HOST}",# <-- AÑADIR ESTA LÍNEA
 ]
 # En producción, deberás añadir la URL de tu frontend, ej: "https://www.tuapp.com"
+
+# Esta configuración es CRUCIAL. Le dice a Django que confíe en las peticiones
+# que se originan desde nuestro frontend de Vue en producción, permitiendo
+# que el mecanismo de cookies CSRF funcione correctamente cross-origin.
+CSRF_TRUSTED_ORIGINS = [
+    f"https://{ALLOWED_HOST}",
+]
+# --- FIN: CORRECCIÓN DE SEGURIDAD ---
 
 # ------------------------------
 # URLS Y WSGI
