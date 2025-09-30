@@ -98,7 +98,30 @@ MEDIA_ROOT = BASE_DIR / 'media'
 REST_FRAMEWORK = {'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',),'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination','PAGE_SIZE': 6}
 SIMPLE_JWT = {'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),'REFRESH_TOKEN_LIFETIME': timedelta(days=1),}
 VITE_APP_DIR = BASE_DIR / "frontend"
-DJANGO_VITE = {"default": {"dev_mode": DEBUG,"manifest_path": VITE_APP_DIR / "dist" / "manifest.json",}}
+
+if DEBUG:
+    # Local development (Vite dev server)
+    DJANGO_VITE = {
+        "default": {
+            "dev_mode": True,
+            "manifest_path": VITE_APP_DIR / "dist" / "manifest.json",
+        }
+    }
+else:
+    # Production build
+    # Algunos setups de Vite usan .vite en dist
+    manifest_path_prod = VITE_APP_DIR / "dist" / ".vite" / "manifest.json"
+    if manifest_path_prod.exists():
+        manifest_path = manifest_path_prod
+    else:
+        manifest_path = VITE_APP_DIR / "dist" / "manifest.json"
+
+    DJANGO_VITE = {
+        "default": {
+            "dev_mode": False,
+            "manifest_path": manifest_path,
+        }
+    }
 
 # ==============================================================================
 # OTRAS CONFIGURACIONES
