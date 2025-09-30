@@ -1,19 +1,36 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/auth';
 
+// --- Función Auxiliar para leer Cookies ---
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+// ------------------------------------
+
 const apiClient = axios.create({
-  // --- INICIO: CAMBIO CRÍTICO ---
-  // Leemos la URL base de la API desde las variables de entorno de Vite.
-  // En desarrollo, será 'http://localhost:8000/api/v1'.
-  // En producción, será '/api/v1'.
   baseURL: import.meta.env.VITE_API_BASE_URL,
-  // --- FIN: CAMBIO CRÍTICO ---
   headers: {
     'Content-Type': 'application/json',
   },
+  // --- INICIO: CORRECCIÓN CSRF ---
+  // Permite que Axios envíe cookies cross-origin si fuera necesario
+  // y es fundamental para que Django reciba el cookie de sesión.
+  withCredentials: true,
+  // --- FIN: CORRECCIÓN CSRF ---
 });
 
-// --- Interceptor de Petición (Sin cambios) ---
 apiClient.interceptors.request.use(
   (config) => {
     const authStore = useAuthStore();
@@ -21,6 +38,16 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
+
+    // --- INICIO: CORRECCIÓN CSRF ---
+    // Añadimos el token CSRF a las cabeceras para peticiones 'mutantes'
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(config.method.toUpperCase())) {
+        if (csrftoken) {
+            config.headers['X-CSRFToken'] = csrftoken;
+        }
+    }
+    // --- FIN: CORRECCIÓN CSRF ---
+
     return config;
   },
   (error) => {
@@ -28,7 +55,6 @@ apiClient.interceptors.request.use(
   }
 );
 
-// --- Interceptor de Respuesta (Sin cambios) ---
 apiClient.interceptors.response.use(
   (response) => {
     return response;
@@ -36,14 +62,10 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     const authStore = useAuthStore();
+    const authEndpoints = ['/auth/login/', '/auth/login/refresh/', '/auth/logout/'];
 
-    const authEndpoints = [
-      '/auth/login/',
-      '/auth/login/refresh/',
-      '/auth/logout/'
-    ];
-
-    if (error.response.status !== 401 || originalRequest._retry) {
+    // Esta condición es crucial para producción, donde a veces no hay error.response
+    if (!error.response || error.response.status !== 401 || originalRequest._retry) {
       return Promise.reject(error);
     }
 
