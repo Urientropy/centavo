@@ -12,7 +12,9 @@ __pycache__/
 *$py.class
 
 # Entorno virtual de Python
-
+venv/
+env/
+.venv/
 
 # Archivos de logs y temporales
 *.log
