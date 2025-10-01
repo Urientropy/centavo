@@ -1,0 +1,9 @@
+.git
+.gitignore
+.idea
+.vscode
+pycache
+venv
+env
+.env
+db.sqlite3
