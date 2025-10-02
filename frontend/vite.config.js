@@ -5,10 +5,15 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
 
-  // --- EL ÚNICO CAMBIO ---
-  // Cuando se construye para producción, asegúrate de que
-  // la base de los assets empiece con /static/
-  base: process.env.NODE_ENV === 'production' ? '/static/' : '/',
+  base: '/static/',
+
+  server: {
+    host: 'localhost',
+    port: 5173,
+    hmr: {
+      host: 'localhost'
+    }
+  },
 
   build: {
     outDir: './dist',
