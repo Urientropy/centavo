@@ -2,36 +2,19 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-export default defineConfig(({ command }) => {
-  return {
-    plugins: [vue()],
+export default defineConfig({
+  plugins: [vue()],
 
-    // --- CONFIGURACIÓN DE BASE ---
-    // En producción ('build'), la base debe ser relativa para que Django/WhiteNoise
-    // puedan manejar las rutas correctamente.
-    // En desarrollo ('serve'), la dejamos por defecto.
-    base: command === 'serve' ? '' : '/static/',
+  // --- EL ÚNICO CAMBIO ---
+  // Cuando se construye para producción, asegúrate de que
+  // la base de los assets empiece con /static/
+  base: process.env.NODE_ENV === 'production' ? '/static/' : '/',
 
-    // --- CONFIGURACIÓN DE BUILD ---
-    build: {
-      // El directorio de salida donde irán los archivos compilados
-      outDir: './dist',
-      // Borra el outDir antes de cada build para evitar archivos viejos
-      emptyOutDir: true,
-
-      // Genera el manifest.json que django-vite necesita
-      manifest: true,
-
-      rollupOptions: {
-        // El punto de entrada de tu aplicación
-        input: 'src/main.js',
-      },
+  build: {
+    outDir: './dist',
+    manifest: true,
+    rollupOptions: {
+      input: 'src/main.js',
     },
-
-    // --- CONFIGURACIÓN DEL SERVIDOR DE DESARROLLO ---
-    server: {
-      host: 'localhost',
-      port: 5173,
-    },
-  }
+  },
 })
