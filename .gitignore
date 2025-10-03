@@ -37,7 +37,7 @@ Thumbs.db
 /media/
 
 # Archivos de Django-Vite generados
-frontend/dist/
+
 frontend/node_modules/
 
 # Archivos de test coverage
