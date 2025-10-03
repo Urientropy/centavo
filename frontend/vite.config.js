@@ -1,11 +1,10 @@
-
 // frontend/vite.config.js
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [vue()],
-  base: '/static/',
+  base: command === 'build' ? '/static/' : '/', // 👈 importante
   server: {
     host: 'localhost',
     port: 5173,
@@ -20,5 +19,4 @@ export default defineConfig({
       input: 'src/main.js',
     },
   },
-})
-
+}))
