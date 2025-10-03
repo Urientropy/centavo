@@ -5,7 +5,10 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
 
-  base: '/static/',
+  // --- EL ÚNICO CAMBIO ---
+  // Cuando se construye para producción, la base debe ser una cadena vacía
+  // para que todas las rutas sean relativas.
+  base: '',
 
   server: {
     host: 'localhost',
